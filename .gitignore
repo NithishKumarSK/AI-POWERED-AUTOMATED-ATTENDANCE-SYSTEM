@@ -18,17 +18,18 @@ frontend/dist/
 *.pkl
 models/face_encodings.pkl
 
-# Documents to Ignore (As requested: no PDFs or DOCX)
+# Documents
 *.pdf
 *.docx
 *.doc
-FINAL_ext.txt
+*.pptx
+*.txt
 
-# Root Level Diagrams/Images (Ignoring architectural diagrams)
-/*.jpg
-/*.jpeg
-/*.png
+# GLOBALLY IGNORE ALL IMAGES EVERYWHERE
+*.jpg
+*.jpeg
+*.png
+*.img
 
-# ----------------------------------------------------------------------
-# All images including student faces are excluded as requested.
-# ----------------------------------------------------------------------
+# GLOBALLY IGNORE DATA DIRECTORY
+data/

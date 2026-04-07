@@ -1,5 +1,0 @@
-numpy
-opencv-python
-deepface
-flask
-flask-cors

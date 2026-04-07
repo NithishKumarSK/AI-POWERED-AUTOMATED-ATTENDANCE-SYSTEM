@@ -1,88 +1,34 @@
-# ------------------------------
-# Python cache / tooling
-# ------------------------------
+# Environment & Caches
 __pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-.python-version
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-.pyre/
-.hypothesis/
-.tox/
-.nox/
-.coverage
-.coverage.*
-htmlcov/
-
-# ------------------------------
-# Virtual environments
-# ------------------------------
-.venv/
-venv/
+*.pyc
 env/
-ENV/
+venv/
+.pytest_cache/
 
-# ------------------------------
-# Local environment / secrets
-# ------------------------------
-.env
-.env.*
-*.local
+# Node / React Frontend
+frontend/node_modules/
+frontend/dist/
+.env.local
+.DS_Store
 
-# ------------------------------
-# Runtime logs / temp files
-# ------------------------------
-*.log
-logs/
-daemon_output.txt
-src/logic_test_output.txt
-tmp/
-temp/
-.cache/
-
-# ------------------------------
-# Project runtime artifacts
-# ------------------------------
-data/known_faces/
-data/attendance.db
-database/attendance.db
-src/face_encodings.pkl
-models/face_encodings.pkl
+# Databases & Machine Learning Caches
 *.db
 *.sqlite
 *.sqlite3
+*.pkl
+models/face_encodings.pkl
 
-# ------------------------------
-# ML artifacts (if generated)
-# ------------------------------
-*.h5
-*.onnx
-*.pt
-*.pth
-*.ckpt
-*.tflite
+# Documents to Ignore (As requested: no PDFs or DOCX)
+*.pdf
+*.docx
+*.doc
+FINAL_ext.txt
 
-# ------------------------------
-# Frontend build dependencies/artifacts
-# ------------------------------
-frontend/node_modules/
-frontend/dist/
-frontend/dist-ssr/
-frontend/.vite/
+# Root Level Diagrams/Images (Ignoring architectural diagrams)
+/*.jpg
+/*.jpeg
+/*.png
 
-# ------------------------------
-# Editor / OS files
-# ------------------------------
-.DS_Store
-Thumbs.db
-Desktop.ini
-.idea/
-.vscode/
-!.vscode/extensions.json
-*.swp
-*.swo
-
+# ----------------------------------------------------------------------
+# All images including student faces are excluded as requested.
+# ----------------------------------------------------------------------

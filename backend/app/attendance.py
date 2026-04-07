@@ -79,17 +79,22 @@ def run_period(
     threshold: float,
     min_instances: int,
     seconds_per_minute: float,
+    topic: str = '',
+    period_number: int = 0,
+    subject_name: str = '',
+    date_string: str = ''
 ) -> int:
-    roster = load_roster_for_class(class_id)
-    if not roster:
-        raise RuntimeError("No enrolled students found in data/known_faces.")
-    db.sync_class_roster(class_id, roster)
+    
+    # 100% Dependency Override: Fetch all 66 students lazily via SQL
+    enrolled_objects = db.get_class_students(class_id)
+    if not enrolled_objects:
+        raise RuntimeError("No active student roles mapped in users table.")
+    student_ids = [s["student_id"] for s in enrolled_objects]
 
-    period_id = db.create_period(class_id, duration_minutes, checks_count, threshold, min_instances)
-    student_ids = [sid for sid, _, _ in roster]
+    period_id = db.create_period(class_id, duration_minutes, checks_count, threshold, min_instances, topic, period_number, subject_name, date_string)
 
-    print(f"\n[====] STRICT Two-Phase CCTV Period Initiated | period_id={period_id} | class_id={class_id} [====]")
-    print(f"[*] Duration: {duration_minutes} min | Phase 1 (11-40) | Phase 2 (41-50)")
+    print(f"\n[====] STRICT Two-Phase CCTV Period Initiated | period_id={period_id} | class_id={class_id} [====]", flush=True)
+    print(f"[*] Duration: {duration_minutes} min | Phase 1 (11-40) | Phase 2 (41-50)", flush=True)
     
     found_sids = set()
     phase1_mins = [15, 25, 35] # Global Sweeps
@@ -99,7 +104,7 @@ def run_period(
         time.sleep(seconds_per_minute)
         
         if minute <= 10 or minute > 55:
-            print(f"[Min {minute}/{duration_minutes}] Grace Period or Idle - Camera Off.")
+            print(f"[Min {minute}/{duration_minutes}] Grace Period or Idle - Camera Off.", flush=True)
             continue
             
         target_sids = []
@@ -112,33 +117,32 @@ def run_period(
             target_sids = list(set(student_ids) - found_sids)
             phase_name = "Phase 2 (Missing Target Hunt)"
             if not target_sids:
-                print(f"[Min {minute}/{duration_minutes}] Phase 2 Skipped. 100% Class Attendance Confirmed.")
+                print(f"[Min {minute}/{duration_minutes}] Phase 2 Skipped. 100% Class Attendance Confirmed.", flush=True)
                 continue
                 
         if not target_sids:
-            print(f"[Min {minute}/{duration_minutes}] Wait Cycle - No scheduled scans.")
+            print(f"[Min {minute}/{duration_minutes}] Wait Cycle - No scheduled scans.", flush=True)
             continue
             
-        print(f"\n[ALERT] {phase_name} at minute={minute}. Hunting {len(target_sids)} students...")
+        print(f"\n[ALERT] {phase_name} at minute={minute}. Hunting {len(target_sids)} students...", flush=True)
         check_id = db.insert_check(period_id, minute, minute, _utc_now())
         
         raw = detect_specific_students(target_sids, sample_frames=12)
         valid: list[tuple[str, float]] = []
         
-        for folder_label, conf in raw:
-            sid, _ = parse_folder_name(folder_label)
+        for sid, conf in raw:
             valid.append((sid, conf))
             found_sids.add(sid)
             
         db.insert_detections(period_id, check_id, valid)
         if valid:
             detail = ", ".join([f"{sid} (cert={conf*100:.1f}%)" for sid, conf in valid])
-            print(f"    -> Solid Targets Identified: {len(valid)} | {detail}")
+            print(f"    -> Solid Targets Identified: {len(valid)} | {detail}", flush=True)
         else:
-            print("    -> Zero targets identified meeting 95% threshold in 360-space.")
+            print("    -> Zero targets identified meeting 95% threshold in 360-space.", flush=True)
 
     _finalize(period_id, class_id, checks_count, threshold, min_instances)
     db.end_period(period_id)
 
-    print("\n[====] Period Completed. Attendance Saved Permanently [====]")
+    print("\n[====] Period Completed. Attendance Saved Permanently [====]", flush=True)
     return period_id

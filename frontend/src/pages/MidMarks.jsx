@@ -2,10 +2,23 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { LineChart, Save } from 'lucide-react';
 
+const facultySubjectMap = {
+    'ESHIRISHA': 'Machine Learning',
+    'BPRIYANKA': 'FLAT',
+    'SK': 'Artificial Intelligence',
+    'AMOUNIKA': 'Scripting Languages',
+    'BNAVEENA': 'FIOT',
+    'PSWETHA': 'IOMP',
+    'JANAKI': 'Environmental Science',
+};
+
 const MidMarks = () => {
+    const authId = localStorage.getItem('auth_id') || 'GUEST';
+    const initialSubj = facultySubjectMap[authId] || 'Artificial Intelligence';
+
     const [students, setStudents] = useState([]);
     const [examType, setExamType] = useState('MID-1');
-    const [subjectName, setSubjectName] = useState('Artificial Intelligence');
+    const [subjectName, setSubjectName] = useState(initialSubj);
 
     useEffect(() => {
         fetch('http://127.0.0.1:5000/api/classes/CSE-D-2026/students')

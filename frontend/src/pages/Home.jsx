@@ -157,32 +157,37 @@ const Home = () => {
         const strDate = `${day}-${month}-${year}`;
 
         if (!groupedByDate[strDate]) {
-           groupedByDate[strDate] = [];
+           groupedByDate[strDate] = { 1: '-', 2: '-', 3: '-', 4: '-', 5: '-', 6: '-', total: 0, attend: 0 };
         }
-        groupedByDate[strDate].push(scan.final_status === 'PRESENT' ? 'P' : 'A');
+        
+        // Strict mapping based on actual Database `period_number` layout
+        const pNum = (scan.period_number && scan.period_number >= 1 && scan.period_number <= 6) 
+                     ? scan.period_number 
+                     : (groupedByDate[strDate].total + 1);
+
+        if (pNum >= 1 && pNum <= 6) {
+           const letter = scan.final_status === 'PRESENT' ? 'P' : 'A';
+           // Only count if it's currently a dash (to prevent ghost overwriting totals, though backend already handles this)
+           if (groupedByDate[strDate][pNum] === '-') {
+               groupedByDate[strDate].total += 1;
+           }
+           
+           groupedByDate[strDate][pNum] = letter;
+        }
      });
 
-     // Map mapped dates back into an ordered Array structure up to 6 P/A markers
+     // Map mathematically defined slots back into an ordered Array structure
      const dynamicPeriodsArray = [];
-     for (const [date, marks] of Object.entries(groupedByDate)) {
-        // Assume maximum 6 periods mapped per day
-        const pArray = [];
-        let attendCount = 0;
-        
-        for(let i = 0; i < 6; i++) {
-           if(i < marks.length) {
-              pArray.push(marks[i]);
-              if(marks[i] === 'P') attendCount++;
-           } else {
-              pArray.push('-');
-           }
-        }
+     for (const [date, dt] of Object.entries(groupedByDate)) {
+        let a = 0;
+        const pArray = [dt[1], dt[2], dt[3], dt[4], dt[5], dt[6]];
+        pArray.forEach(val => { if (val === 'P') a++; });
 
         dynamicPeriodsArray.push({
            date: date,
            p: pArray,
-           t: marks.length,
-           a: attendCount
+           t: dt.total,
+           a: a
         });
      }
      
@@ -203,14 +208,33 @@ const Home = () => {
         }
      });
 
-  const synthAttendance = [
-    { sub: 'Machine Learning', c: 64, a: 42, pct: '65.63' },
-    { sub: 'Formal Languages And Automata Theory', c: 65, a: 41, pct: '63.08' },
-    { sub: 'Artificial Intelligence', c: 64, a: 39, pct: '60.94' },
-    { sub: 'Scripting Languages', c: 61, a: 40, pct: '65.57' },
-    { sub: 'Fundamentals Of Internet Of Things', c: 55, a: 26, pct: '47.27' },
-    { sub: 'Environmental Science', c: 14, a: 9, pct: '64.29' }
-  ];
+  const calculateDynamicSubjects = () => {
+     const knownSubjects = [
+        "Machine Learning",
+        "Formal Languages And Automata Theory",
+        "Artificial Intelligence",
+        "Scripting Languages",
+        "Fundamentals Of Internet Of Things",
+        "Environmental Science"
+     ];
+     // We also want to map abbreviations if needed
+     const abbreviations = {"FLAT": "Formal Languages And Automata Theory", "FIOT": "Fundamentals Of Internet Of Things", "IOMP": "Machine Learning"};
+
+     return knownSubjects.map(sub => {
+        let t = 0; let a = 0;
+        history.forEach((p) => {
+           const dbClass = p.class_id || '';
+           if(dbClass.includes(sub) || Object.keys(abbreviations).some(k => dbClass.includes(k) && abbreviations[k] === sub)) {
+              t++;
+              if(p.final_status === 'PRESENT') a++;
+           }
+        });
+        const pct = t > 0 ? ((a / t) * 100).toFixed(2) : '0.00';
+        return { sub, c: t, a, pct };
+     });
+  };
+
+  const synthAttendance = calculateDynamicSubjects();
 
   return (
     <div className="min-h-screen bg-[#0b0e14] text-gray-200 font-sans flex text-[13px]">
@@ -302,9 +326,9 @@ const Home = () => {
                          ))}
                          <tr className="bg-[#0d1117] font-bold">
                             <td className="p-2 text-right border-r border-[#30363d]">Net Aggregate Map:</td>
-                            <td className="p-2 border-r border-[#30363d]">435</td>
-                            <td className="p-2 border-r border-[#30363d]">279</td>
-                            <td className="p-2 text-[#3fb950]">64.14%</td>
+                            <td className="p-2 border-r border-[#30363d] text-gray-400">{synthAttendance.reduce((a, b) => a + b.c, 0)}</td>
+                            <td className="p-2 border-r border-[#30363d] text-gray-400">{synthAttendance.reduce((a, b) => a + b.a, 0)}</td>
+                            <td className="p-2 text-[#3fb950]">{synthAttendance.reduce((a, b) => a + b.c, 0) > 0 ? ((synthAttendance.reduce((a, b) => a + b.a, 0) / synthAttendance.reduce((a, b) => a + b.c, 0)) * 100).toFixed(2) : '0.00'}%</td>
                          </tr>
                       </tbody>
                    </table>

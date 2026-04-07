@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Server Logs - PowerShell Output</title>
+<style>
+    body {
+        margin: 0;
+        padding: 50px;
+        background-color: #f0f0f0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: 'Consolas', 'Courier New', monospace;
+    }
+    .terminal-window {
+        background-color: #0c0c0c;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        overflow: hidden;
+        width: 100%;
+        max-width: 1000px;
+        border: 1px solid #333;
+    }
+    .terminal-header {
+        background-color: #333;
+        color: #ddd;
+        padding: 10px 15px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #111;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .terminal-header span {
+        margin-left: 10px;
+    }
+    .terminal-body {
+        padding: 20px;
+        color: #cccccc;
+        font-size: 14px;
+        line-height: 1.5;
+        overflow-y: auto;
+        max-height: 700px;
+    }
+    .line { margin: 0; }
+    .ps-prompt { color: #f9f1a5; font-weight: bold; }
+    .ps-cmd { color: #ffffff; }
+    .sys-msg { color: #aaa; }
+    .warning { color: #f0a30a; }
+    .ip { color: #8bd3e6; }
+    .highlight { color: #fff; font-weight: bold; }
+    .alert { color: #ff5555; font-weight: bold; }
+    .success { color: #50fa7b; font-weight: bold; }
+    .debug { color: #bd93f9; }
+</style>
+</head>
+<body>
+
+<div class="terminal-window">
+    <div class="terminal-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2zm.5 3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5zm.5 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/>
+        </svg>
+        <span>Windows PowerShell - python backend\run.py</span>
+    </div>
+    <div class="terminal-body">
+        <div class="line"><span class="ps-prompt">PS C:\Users\nithi\OneDrive\Desktop\IOMP&gt;</span> <span class="ps-cmd">python backend\run.py</span></div>
+        <div class="line sys-msg"> * Serving Flask app 'app'</div>
+        <div class="line sys-msg"> * Debug mode: off</div>
+        <div class="line warning">WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.</div>
+        <div class="line sys-msg"> * Running on http://127.0.0.1:5000</div>
+        <div class="line sys-msg">Press CTRL+C to quit</div>
+        <div class="line"><span class="ip">127.0.0.1</span> - - [30/Mar/2026 23:02:52] "POST /api/auth/login HTTP/1.1" 200 -</div>
+        <div class="line"><span class="ip">127.0.0.1</span> - - [30/Mar/2026 23:03:00] "OPTIONS /api/periods/run HTTP/1.1" 200 -</div>
+        <div class="line highlight" style="margin-top:20px;">&gt;&gt;&gt; STARTING BACKGROUND CCTV THREAD...</div>
+        <div class="line"><span class="ip">127.0.0.1</span> - - [30/Mar/2026 23:03:01] "POST /api/periods/run HTTP/1.1" 201 -</div>
+        <div class="line highlight" style="margin-top:20px;">[====] STRICT Two-Phase CCTV Period Initiated | period_id=27 | class_id=CSE-D-2026 - FLAT/IOMP [====]</div>
+        <div class="line">[*] Duration: 60 min | Phase 1 (11-40) | Phase 2 (41-50)</div>
+        <div class="line sys-msg">[Min 1/60] Grace Period or Idle - Camera Off.</div>
+        <div class="line sys-msg">[Min 2/60] Grace Period or Idle - Camera Off.</div>
+        <div class="line sys-msg">...</div>
+        <div class="line sys-msg">[Min 10/60] Grace Period or Idle - Camera Off.</div>
+        <div class="line sys-msg">[Min 11/60] Wait Cycle - No scheduled scans.</div>
+        <div class="line sys-msg">...</div>
+        
+        <div class="line alert" style="margin-top:20px;">[ALERT] Phase 1 (Global Sweep) at minute=15. Hunting 66 students...</div>
+        <div class="line">Scanning 12 frames explicitly looking for 66 absent targets using VGG-Face...</div>
+        
+        <div class="line debug" style="margin-top:20px;">[DEBUG] -&gt; Validated 23R91A05L6 mathematically at 99.10%</div>
+        <div class="line success">    -&gt; Solid Targets Identified: 1 | 23R91A05L6 (cert=99.1%)</div>
+        
+        <div class="line sys-msg" style="margin-top:20px;">[Min 16/60] Wait Cycle - No scheduled scans.</div>
+        <div class="line sys-msg">[Min 17/60] Wait Cycle - No scheduled scans.</div>
+        <div class="line sys-msg">...</div>
+        
+        <div class="line alert" style="margin-top:20px;">[ALERT] Phase 2 (Missing Target Hunt) at minute=50. Hunting 65 students...</div>
+        <div class="line">Scanning 12 frames explicitly looking for 65 absent targets using VGG-Face...</div>
+        <div class="line sys-msg">    -&gt; Zero targets identified meeting 95% threshold in 360-space.</div>
+        
+        <div class="line sys-msg" style="margin-top:20px;">[Min 51/60] Wait Cycle - No scheduled scans.</div>
+        <div class="line sys-msg">...</div>
+        <div class="line sys-msg">[Min 60/60] Grace Period or Idle - Camera Off.</div>
+
+        <div class="line highlight" style="margin-top:20px;">============================================================</div>
+        <div class="line success">[SMS ALERT =&gt; FACULTY] Sent to Registered Mobile / Portal</div>
+        <div class="line highlight">[Message] AI Period 27 finalized across Phases. 1/66 students marked PRESENT with strictly &gt;95% confidence bounds.</div>
+        <div class="line highlight">============================================================</div>
+
+        <div class="line success" style="margin-top:20px;">[====] Period Completed. Attendance Saved Permanently [====]</div>
+    </div>
+</div>
+
+</body>
+</html>

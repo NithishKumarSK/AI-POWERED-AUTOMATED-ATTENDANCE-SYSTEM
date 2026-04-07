@@ -35,7 +35,11 @@ def ensure_db() -> None:
                 checks_count INTEGER NOT NULL,
                 presence_threshold REAL NOT NULL,
                 min_instances_required INTEGER NOT NULL,
-                status TEXT NOT NULL
+                status TEXT NOT NULL,
+                topic TEXT DEFAULT '',
+                period_number INTEGER DEFAULT 0,
+                subject_name TEXT DEFAULT '',
+                date_string TEXT DEFAULT ''
             );
 
             CREATE TABLE IF NOT EXISTS period_checks (
@@ -117,6 +121,8 @@ def ensure_db() -> None:
             INSERT OR IGNORE INTO users VALUES ('23R91A05L5', '23R91A05L5', 'student', 'MUDIREDDY HARISH REDDY');
             INSERT OR IGNORE INTO users VALUES ('23R91A05L6', '23R91A05L6', 'student', 'MUKKAM NITHISH KUMAR');
             INSERT OR IGNORE INTO users VALUES ('23R91A05L7', '23R91A05L7', 'student', 'MUMMEDY DURGA SAI LAKSHMI');
+            INSERT OR IGNORE INTO users VALUES ('23R91A05L6', '23R91A05L6', 'student', 'NITHISH KUMAR');
+            INSERT OR IGNORE INTO users VALUES ('23R91A05L7', '23R91A05L7', 'student', 'MUKESH YADAV');
             INSERT OR IGNORE INTO users VALUES ('23R91A05L8', '23R91A05L8', 'student', 'MUSHA SHASHI KUMAR');
             INSERT OR IGNORE INTO users VALUES ('23R91A05L9', '23R91A05L9', 'student', 'MUSKAN KUMARI');
             INSERT OR IGNORE INTO users VALUES ('23R91A05M0', '23R91A05M0', 'student', 'MUSTI ARAVIND');
@@ -227,7 +233,17 @@ def list_classes() -> list[str]:
     return [r["class_id"] for r in rows]
 
 
+def get_all_student_users_as_roster(class_id: str) -> list[tuple[str, str, str]]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT user_id, full_name FROM users WHERE role='student'").fetchall()
+    return [(r["user_id"], r["full_name"] or "Unknown", class_id) for r in rows]
+
 def get_class_students(class_id: str) -> list[sqlite3.Row]:
+    # Lazy Synchronization against 66 Seeder length
+    roster = get_all_student_users_as_roster(class_id)
+    if roster:
+        sync_class_roster(class_id, roster)
+
     with get_conn() as conn:
         return conn.execute(
             """
@@ -246,18 +262,76 @@ def create_period(
     checks_count: int,
     threshold: float,
     min_instances: int,
+    topic: str = '',
+    period_number: int = 0,
+    subject_name: str = '',
+    date_string: str = ''
 ) -> int:
     with get_conn() as conn:
+        # Prevent database duplicate accumulation by destroying old instances of this specific period block today
+        if period_number > 0 and date_string != '':
+            old = conn.execute("SELECT period_id FROM periods WHERE date_string=? AND period_number=?", (date_string, period_number)).fetchone()
+            if old:
+                pid = old["period_id"]
+                conn.execute("DELETE FROM detection_logs WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM period_checks WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM final_attendance WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM overrides WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM periods WHERE period_id=?", (pid,))
+                
         cur = conn.execute(
             """
             INSERT INTO periods(
                 class_id, started_at, duration_minutes, checks_count,
-                presence_threshold, min_instances_required, status
-            ) VALUES (?, ?, ?, ?, ?, ?, 'running')
+                presence_threshold, min_instances_required, status,
+                topic, period_number, subject_name, date_string
+            ) VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)
             """,
-            (class_id, utc_now(), duration_minutes, checks_count, threshold, min_instances),
+            (class_id, utc_now(), duration_minutes, checks_count, threshold, min_instances, topic, period_number, subject_name, date_string),
         )
         return int(cur.lastrowid)
+
+
+def finalize_period(period_id: int):
+    """ Mark period as COMPLETED """
+    with get_conn() as conn:
+        conn.execute("UPDATE periods SET status='COMPLETED', ended_at=? WHERE period_id=?", (utc_now(), period_id))
+
+def create_manual_period(class_id: str, topic: str, statuses: dict, lecturer: str, period_number: int = 0, subject_name: str = '', date_string: str = ''):
+    """ Build a custom manual DB hook mimicking CCTV states correctly so React maps sync up """
+    now = utc_now()
+    with get_conn() as conn:
+        # Prevent database duplicate accumulation
+        if period_number > 0 and date_string != '':
+            old = conn.execute("SELECT period_id FROM periods WHERE date_string=? AND period_number=?", (date_string, period_number)).fetchone()
+            if old:
+                pid = old["period_id"]
+                conn.execute("DELETE FROM detection_logs WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM period_checks WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM final_attendance WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM overrides WHERE period_id=?", (pid,))
+                conn.execute("DELETE FROM periods WHERE period_id=?", (pid,))
+                
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO periods (class_id, started_at, ended_at, duration_minutes, checks_count, presence_threshold, min_instances_required, status, topic, period_number, subject_name, date_string)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (class_id, now, now, 60, 0, 0, 0, 'MANUAL_COMPLETED', topic, period_number, subject_name, date_string)
+        )
+        pid = cur.lastrowid
+        
+        # Iterate over all specific statuses provided by the React Draft State
+        for sid, status in statuses.items():
+            cur.execute(
+                """
+                INSERT INTO final_attendance (period_id, student_id, detections_count, checks_count, detection_ratio, ai_status, final_status, finalized_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (pid, sid, 0, 0, 0.0, status, status, now)
+            )
+        return pid
 
 
 def end_period(period_id: int) -> None:
@@ -415,7 +489,7 @@ def get_student_attendance(student_id: str) -> list[sqlite3.Row]:
     with get_conn() as conn:
         return conn.execute(
             """
-            SELECT f.*, p.class_id, p.started_at, p.status, p.duration_minutes
+            SELECT f.*, p.class_id, p.started_at, p.status, p.duration_minutes, p.period_number, p.subject_name
             FROM final_attendance f
             JOIN periods p ON p.period_id=f.period_id
             WHERE f.student_id=?
@@ -435,7 +509,7 @@ def get_student_stats(student_id: str) -> dict:
             """, (student_id,)
         ).fetchone()
         
-        info = conn.execute("SELECT full_name, class_id FROM students WHERE student_id=?", (student_id,)).fetchone()
+        info = conn.execute("SELECT full_name, 'CSE-D-2026' as class_id FROM users WHERE user_id=?", (student_id,)).fetchone()
         
         if not row or not info:
              return {"total_periods": 0, "present_periods": 0, "percentage": 0.0, "full_name": "Unknown", "class_id": "Unknown"}

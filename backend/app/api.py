@@ -54,19 +54,33 @@ def period(period_id: int):
 
 import threading
 
+import traceback
+import sys
+
 @api.post("/periods/run")
 def run():
     body = request.get_json(force=True)
     try:
         def background_job():
-            run_period(
-                class_id=body["class_id"],
-                duration_minutes=int(body.get("duration_minutes", settings.default_duration_minutes)),
-                checks_count=int(body.get("checks_count", settings.default_checks_count)),
-                threshold=float(body.get("threshold", settings.default_presence_threshold)),
-                min_instances=int(body.get("min_instances", settings.min_instances_required)),
-                seconds_per_minute=float(body.get("seconds_per_minute", 1.0)),
-            )
+            try:
+                print(">>> STARTING BACKGROUND CCTV THREAD...", flush=True)
+                run_period(
+                    class_id=body["class_id"],
+                    duration_minutes=int(body.get("duration_minutes", settings.default_duration_minutes)),
+                    checks_count=int(body.get("checks_count", settings.default_checks_count)),
+                    threshold=float(body.get("threshold", settings.default_presence_threshold)),
+                    min_instances=int(body.get("min_instances", settings.min_instances_required)),
+                    seconds_per_minute=float(body.get("seconds_per_minute", 1.0)),
+                    topic=body.get("topic", "General Lecture"),
+                    period_number=int(body.get("period_number", 0)),
+                    subject_name=body.get("subject_name", ""),
+                    date_string=body.get("date_string", "")
+                )
+            except Exception as e:
+                print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", flush=True)
+                print("FATAL CRASH IN BACKGROUND CCTV THREAD!!!", flush=True)
+                traceback.print_exc(file=sys.stdout)
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", flush=True)
             
         thread = threading.Thread(target=background_job)
         thread.daemon = True
@@ -111,6 +125,37 @@ def override(period_id: int):
         return jsonify({"status": "ok"})
     except Exception as exc:
         return jsonify({"status": "error", "message": str(exc)}), 400
+
+@api.post("/periods/manual_bulk")
+def create_manual_period_bulk():
+    body = request.get_json(force=True)
+    try:
+        pid = db.create_manual_period(
+            class_id=body["class_id"],
+            topic=body.get("topic", "General Lecture"),
+            statuses=body["statuses"],
+            lecturer=body.get("lecturer", "unknown"),
+            period_number=int(body.get("period_number", 0)),
+            subject_name=body.get("subject_name", ""),
+            date_string=body.get("date_string", "")
+        )
+        return jsonify({"status": "ok", "period_id": pid}), 201
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+@api.get("/periods/status")
+def period_status():
+    date_string = request.args.get("date_string")
+    period_number = request.args.get("period_number")
+    
+    if not date_string or not period_number:
+        return jsonify({"is_finalized": False, "message": "Missing params"})
+        
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT * FROM periods WHERE date_string = ? AND period_number = ?", (date_string, int(period_number))).fetchone()
+        
+    if row:
+        return jsonify({"is_finalized": True})
+    return jsonify({"is_finalized": False})
 
 
 @api.get("/recognition/probe")
